@@ -5,6 +5,8 @@ import { useSettings } from "../contexts/SettingsContext";
 const ControlPanel = () => {
   const {
     isConnected,
+    isRelativeMode,
+    isMm,
     logs,
     commandQueue,
     pendingAck,
@@ -16,7 +18,7 @@ const ControlPanel = () => {
   } = useMachine();
 
   const { settings } = useSettings();
-  const [stepSize, setStepSize] = useState(1.0);
+  const [stepSize, setStepSize] = useState(100);
   const [manualCommand, setManualCommand] = useState("");
   const consoleRef = useRef(null);
 
@@ -96,17 +98,41 @@ const ControlPanel = () => {
     return () => document.removeEventListener("keydown", handleKeyPress);
   }, [stepSize]);
 
-  const relativeMove = (axis) => {
-    if (!isConnected) return;
+  const shouldSendCommands = () => {
+    return isConnected && commandQueue.length === 0;
+  };
 
-    const distance = axis.includes("-") ? -stepSize : stepSize;
-    const axisLetter = axis.replace("-", "");
-    const command = `G91\nG1 ${axisLetter}${distance}\nG90\n`;
-    sendCommands([command]);
+  const relativeMove = (axis) => {
+    if (!shouldSendCommands()) return;
+
+    const commands = [];
+
+    // Check if we need to set relative mode
+    if (!isRelativeMode) {
+      commands.push("G91\n");
+    }
+
+    // Check if we need to set mm mode
+    if (!isMm) {
+      commands.push("G21\n");
+    }
+
+    // Build the move command with proper feedrate
+    const feedrate = settings.workspace_jog_feedrate;
+    let mv = "G1";
+    if (settings.workspace_jog_rapid) {
+      mv = "G0";
+    } else if (feedrate && feedrate > 0) {
+      mv += " F" + feedrate;
+    }
+    mv += " " + axis + stepSize;
+    commands.push(mv + "\n");
+
+    sendCommands(commands);
   };
 
   const sendCommands = (commands) => {
-    if (!isConnected) return;
+    if (!shouldSendCommands()) return;
     enqueueCommands(commands);
   };
 
