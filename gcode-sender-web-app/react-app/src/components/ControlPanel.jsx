@@ -10,7 +10,10 @@ const ControlPanel = () => {
     logs,
     commandQueue,
     pendingAck,
+    isPaused,
     enqueueCommands,
+    pause,
+    resume,
     emergencyStop,
     clearLogs,
     clearCommandQueue,
@@ -169,14 +172,68 @@ const ControlPanel = () => {
       >
         {settings.workspace_show_estop && (
           <div className="control-section">
-            <h4>Emergency Stop</h4>
-            <div className="d-flex lonely-centered">
+            <h4>Machine Control</h4>
+            <div
+              className="d-flex justify-content-center"
+              style={{ gap: "var(--space-lg)" }}
+            >
               <button
-                className="btn btn-estop"
+                className="btn btn-secondary"
+                onClick={isPaused ? resume : pause}
+                disabled={!isConnected}
+                style={{
+                  minWidth: "120px",
+                  padding: "var(--space-md) var(--space-lg)",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-primary)",
+                  background: "var(--bg-card)",
+                  color: "var(--text-primary)",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.background = "var(--bg-hover)";
+                    e.target.style.borderColor = "var(--color-primary)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "var(--bg-card)";
+                  e.target.style.borderColor = "var(--border-primary)";
+                }}
+              >
+                {isPaused ? "▶ Resume" : "⏸ Pause"}
+              </button>
+              <button
+                className="btn btn-secondary"
                 onClick={handleEmergencyStop}
                 disabled={!isConnected}
+                style={{
+                  minWidth: "120px",
+                  padding: "var(--space-md) var(--space-lg)",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-primary)",
+                  background: "var(--bg-card)",
+                  color: "var(--color-danger)",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.target.disabled) {
+                    e.target.style.background = "var(--color-danger)";
+                    e.target.style.color = "white";
+                    e.target.style.borderColor = "var(--color-danger)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "var(--bg-card)";
+                  e.target.style.color = "var(--color-danger)";
+                  e.target.style.borderColor = "var(--border-primary)";
+                }}
               >
-                ⚠
+                ⚠ Emergency Stop
               </button>
             </div>
           </div>
@@ -237,6 +294,32 @@ const ControlPanel = () => {
                   → +X
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Pen Controls */}
+          <div className="mb-3">
+            <label className="form-label">Pen Control</label>
+            <div
+              className="d-flex justify-content-between"
+              style={{ gap: "var(--space-sm)" }}
+            >
+              <button
+                className="btn btn-secondary flex"
+                onClick={() => sendCommands(["M300 S30\n"])}
+                disabled={!isConnected}
+                style={{ minWidth: "80px" }}
+              >
+                🖊️ Pen Down
+              </button>
+              <button
+                className="btn btn-secondary flex"
+                onClick={() => sendCommands(["M300 S50\n"])}
+                disabled={!isConnected}
+                style={{ minWidth: "80px" }}
+              >
+                ✏️ Pen Up
+              </button>
             </div>
           </div>
 
@@ -406,16 +489,23 @@ const ControlPanel = () => {
               ref={consoleRef}
               style={{ flex: 1, overflow: "auto", padding: "var(--space-md)" }}
             >
-              {logs.map((log, index) => (
-                <div
-                  key={index}
-                  className={`${log.isAck ? "is-ack" : ""} ${
-                    log.remoteSource ? "log-remote-entry" : "log-user-entry"
-                  }`}
-                >
-                  {log.msg}
-                </div>
-              ))}
+              {logs.map((log, index) => {
+                // Hide "ok" responses but keep everything else
+                if (log.remoteSource && log.msg.trim() === "ok") {
+                  return null;
+                }
+
+                return (
+                  <div
+                    key={index}
+                    className={`${log.isAck ? "is-ack" : ""} ${
+                      log.remoteSource ? "log-remote-entry" : "log-user-entry"
+                    }`}
+                  >
+                    {log.msg}
+                  </div>
+                );
+              })}
             </div>
             <form
               onSubmit={sendManualCommand}

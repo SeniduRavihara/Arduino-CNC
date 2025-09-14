@@ -31,6 +31,7 @@ export const MachineProvider = ({ children }) => {
   const [serialReader, setSerialReader] = useState(null);
   const [serialWriter, setSerialWriter] = useState(null);
   const [keepReading, setKeepReading] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const CONSOLE_MAX_SCROLLBACK = 120;
 
@@ -171,7 +172,8 @@ export const MachineProvider = ({ children }) => {
     if (
       currentQueue.length === 0 ||
       !window.currentSerialPort ||
-      currentPendingAck
+      currentPendingAck ||
+      window.currentIsPaused
     ) {
       return;
     }
@@ -258,6 +260,7 @@ export const MachineProvider = ({ children }) => {
       window.currentCommandQueue = [];
       window.currentPendingAck = false;
       window.currentKeepReading = true;
+      window.currentIsPaused = false;
 
       // Monitor port for disconnection
       portToUse.addEventListener("disconnect", () => {
@@ -309,6 +312,7 @@ export const MachineProvider = ({ children }) => {
     window.currentCommandQueue = [];
     window.currentPendingAck = false;
     window.currentKeepReading = false;
+    window.currentIsPaused = false;
 
     setIsConnected(false);
     setIsBusy(false);
@@ -326,6 +330,20 @@ export const MachineProvider = ({ children }) => {
   };
 
   // Emergency stop
+  // Pause command processing
+  const pause = () => {
+    setIsPaused(true);
+    window.currentIsPaused = true;
+    console.log("Machine paused");
+  };
+
+  // Resume command processing
+  const resume = () => {
+    setIsPaused(false);
+    window.currentIsPaused = false;
+    console.log("Machine resumed");
+  };
+
   const emergencyStop = async () => {
     console.error("!!!emergency stop activated!!!");
 
@@ -368,11 +386,14 @@ export const MachineProvider = ({ children }) => {
     isRelativeMode,
     isMm,
     pendingAck,
+    isPaused,
     logs,
     commandQueue,
     connect,
     disconnect,
     enqueueCommands,
+    pause,
+    resume,
     emergencyStop,
     clearLogs,
     clearCommandQueue,
